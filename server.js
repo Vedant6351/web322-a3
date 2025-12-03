@@ -1,6 +1,6 @@
 /********************************************************************************
 * WEB322 – Assignment 03
-*
+* 
 * I declare that this assignment is my own work in accordance with Seneca's
 * Academic Integrity Policy:
 *
@@ -11,8 +11,6 @@
 ********************************************************************************/
 
 require("dotenv").config();
-console.log("Loaded MONGO_URL:", process.env.MONGO_URL);
-console.log("Loaded PGHOST:", process.env.PGHOST);
 
 const express = require("express");
 const session = require("client-sessions");
@@ -30,7 +28,6 @@ const taskRoutes = require("./routes/taskRoutes");
 const { ensureLogin } = require("./middleware/authMiddleware");
 
 const app = express();
-const PORT = process.env.PORT || 8080;
 
 // ---------------------- VIEW ENGINE ----------------------
 app.set("view engine", "ejs");
@@ -63,25 +60,27 @@ app.use((req, res) => {
   res.status(404).render("404", { message: "Page not found" });
 });
 
-// ---------------------- STARTUP FUNCTION ----------------------
-async function start() {
-  try {
-    console.log("Connecting to MongoDB...");
-    await connectMongo();
+// ---------------------- CONNECT DATABASES (for Vercel) ----------------------
+// Vercel initializes the function on first request, so we use lazy-connect
+let dbConnected = false;
 
-    console.log("Connecting to PostgreSQL...");
-    await connectPostgres();
+async function ensureDatabases() {
+  if (dbConnected) return;
+  console.log("💾 Connecting databases for first time...");
 
-    console.log("Syncing PostgreSQL models...");
-    sequelize.sync({ force: true })
+  await connectMongo();
+  await connectPostgres();
+  await sequelize.sync(); // NO force:true in production!
 
-
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running on http://localhost:${PORT}`)
-    );
-  } catch (err) {
-    console.error("❌ Startup error:", err);
-  }
+  dbConnected = true;
+  console.log("✅ Databases connected");
 }
 
-start();
+// Call database connection before each request (Vercel-friendly)
+app.use(async (req, res, next) => {
+  await ensureDatabases();
+  next();
+});
+
+// ---------------------- EXPORT FOR VERCEL ----------------------
+module.exports = app;
