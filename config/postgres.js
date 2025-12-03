@@ -1,3 +1,5 @@
+require("dotenv").config();
+require("pg");
 const { Sequelize } = require("sequelize");
 
 const sequelize = new Sequelize(

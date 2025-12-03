@@ -6,11 +6,11 @@
 *
 * https://www.senecapolytechnic.ca/about/policies/academic-integrity-policy.html
 *
-* Name: Vedant Kalpit Pandit Student ID: 162915235 Date: 2025-12-02
-*
+* Name: Vedant Kalpit Pandit  Student ID: 162915235  Date: 2025-12-02
 ********************************************************************************/
 
 require("dotenv").config();
+require("pg"); // IMPORTANT: ensures Vercel bundles pg for Sequelize
 
 const express = require("express");
 const session = require("client-sessions");
@@ -20,24 +20,28 @@ const path = require("path");
 const connectMongo = require("./config/mongo");
 const { sequelize, connectPostgres } = require("./config/postgres");
 
-// Routes
+// Middleware & Routes
+const { ensureLogin } = require("./middleware/authMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 
-// Middleware
-const { ensureLogin } = require("./middleware/authMiddleware");
-
 const app = express();
 
-// ---------------------- VIEW ENGINE ----------------------
+/* -----------------------------------------------------------
+   VIEW ENGINE
+----------------------------------------------------------- */
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-// ---------------------- STATIC FILES ----------------------
+/* -----------------------------------------------------------
+   STATIC FILES & BODY PARSER
+----------------------------------------------------------- */
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 
-// ---------------------- SESSIONS ----------------------
+/* -----------------------------------------------------------
+   SESSION CONFIG
+----------------------------------------------------------- */
 app.use(
   session({
     cookieName: "session",
@@ -47,40 +51,50 @@ app.use(
   })
 );
 
-// ---------------------- ROUTES ----------------------
-app.get("/", (req, res) => {
-  res.redirect("/login");
-});
-
-app.use("/", authRoutes);
-app.use("/", ensureLogin, taskRoutes);
-
-// ---------------------- 404 PAGE ----------------------
-app.use((req, res) => {
-  res.status(404).render("404", { message: "Page not found" });
-});
-
-// ---------------------- CONNECT DATABASES (for Vercel) ----------------------
-// Vercel initializes the function on first request, so we use lazy-connect
+/* -----------------------------------------------------------
+   LAZY DATABASE CONNECT (VERCEL FRIENDLY)
+----------------------------------------------------------- */
 let dbConnected = false;
 
 async function ensureDatabases() {
   if (dbConnected) return;
-  console.log("💾 Connecting databases for first time...");
 
-  await connectMongo();
-  await connectPostgres();
-  await sequelize.sync(); // NO force:true in production!
+  console.log("🔄 Initializing database connections...");
 
-  dbConnected = true;
-  console.log("✅ Databases connected");
+  try {
+    await connectMongo();          // MongoDB (Atlas)
+    await connectPostgres();       // Sequelize Postgres
+    await sequelize.sync();        // Sync models
+
+    console.log("✅ All databases connected successfully.");
+    dbConnected = true;
+  } catch (err) {
+    console.error("❌ Database connection failed:", err);
+  }
 }
 
-// Call database connection before each request (Vercel-friendly)
+// Ensure DB connection BEFORE processing any request
 app.use(async (req, res, next) => {
   await ensureDatabases();
   next();
 });
 
-// ---------------------- EXPORT FOR VERCEL ----------------------
+/* -----------------------------------------------------------
+   ROUTES
+----------------------------------------------------------- */
+app.get("/", (req, res) => res.redirect("/login"));
+
+app.use("/", authRoutes);
+app.use("/", ensureLogin, taskRoutes);
+
+/* -----------------------------------------------------------
+   404 PAGE
+----------------------------------------------------------- */
+app.use((req, res) => {
+  res.status(404).render("404", { message: "Page not found" });
+});
+
+/* -----------------------------------------------------------
+   EXPORT FOR VERCEL (NO PORT LISTEN HERE)
+----------------------------------------------------------- */
 module.exports = app;
