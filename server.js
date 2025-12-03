@@ -10,13 +10,13 @@
 *
 ********************************************************************************/
 
-require("dotenv").config();
 
+require("dotenv").config();
 const express = require("express");
 const session = require("client-sessions");
 const path = require("path");
 
-// Database connections
+// Database
 const connectMongo = require("./config/mongo");
 const { sequelize, connectPostgres } = require("./config/postgres");
 
@@ -37,7 +37,7 @@ app.set("views", path.join(__dirname, "views"));
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 
-// ---------------------- SESSIONS ----------------------
+// ---------------------- SESSION ----------------------
 app.use(
   session({
     cookieName: "session",
@@ -48,39 +48,41 @@ app.use(
 );
 
 // ---------------------- ROUTES ----------------------
-app.get("/", (req, res) => {
-  res.redirect("/login");
-});
+app.get("/", (req, res) => res.redirect("/login"));
 
 app.use("/", authRoutes);
 app.use("/", ensureLogin, taskRoutes);
 
-// ---------------------- 404 PAGE ----------------------
+// 404
 app.use((req, res) => {
   res.status(404).render("404", { message: "Page not found" });
 });
 
-// ---------------------- CONNECT DATABASES (for Vercel) ----------------------
-// Vercel initializes the function on first request, so we use lazy-connect
-let dbConnected = false;
+// ---------------------- START (LOCAL ONLY) ----------------------
+async function startLocal() {
+  try {
+    console.log("Connecting to MongoDB...");
+    await connectMongo();
 
-async function ensureDatabases() {
-  if (dbConnected) return;
-  console.log("💾 Connecting databases for first time...");
+    console.log("Connecting to PostgreSQL...");
+    await connectPostgres();
 
-  await connectMongo();
-  await connectPostgres();
-  await sequelize.sync(); // NO force:true in production!
+    console.log("Syncing PostgreSQL models...");
+    await sequelize.sync(); // ❗ DO NOT USE force:true in Vercel
 
-  dbConnected = true;
-  console.log("✅ Databases connected");
+    const PORT = process.env.PORT || 8080;
+    app.listen(PORT, () =>
+      console.log(`🚀 Local server running on http://localhost:${PORT}`)
+    );
+  } catch (err) {
+    console.error("Startup error:", err);
+  }
 }
 
-// Call database connection before each request (Vercel-friendly)
-app.use(async (req, res, next) => {
-  await ensureDatabases();
-  next();
-});
+// Only start a server when running locally
+if (process.env.VERCEL !== "1") {
+  startLocal();
+}
 
 // ---------------------- EXPORT FOR VERCEL ----------------------
 module.exports = app;
