@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Your Tasks</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- NAV -->
+  <nav class="bg-white shadow p-4 flex justify-between">
+    <h2 class="text-xl font-bold">Task Manager</h2>
+
+    <div class="flex gap-4">
+      <a href="/dashboard" class="text-blue-600 hover:underline">Dashboard</a>
+      <a href="/logout" class="text-red-600 hover:underline">Logout</a>
+    </div>
+  </nav>
+
+  <div class="max-w-5xl mx-auto mt-10">
+
+    <h1 class="text-3xl font-bold mb-6">Your Tasks</h1>
+
+    <div class="mb-6">
+      <a href="/tasks/add"
+         class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        + Add Task
+      </a>
+    </div>
+
+    <!-- TASK TABLE -->
+    <div class="overflow-x-auto bg-white shadow rounded-lg">
+      <table class="min-w-full text-left">
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="p-3 font-semibold">Title</th>
+            <th class="p-3 font-semibold">Description</th>
+            <th class="p-3 font-semibold">Due Date</th>
+            <th class="p-3 font-semibold">Status</th>
+            <th class="p-3 font-semibold text-center">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <% if (tasks.length === 0) { %>
+            <tr>
+              <td colspan="5" class="text-center p-6 text-gray-500">
+                No tasks found. Create one!
+              </td>
+            </tr>
+          <% } %>
+
+          <% tasks.forEach(task => { %>
+            <tr class="border-b">
+              <td class="p-3"><%= task.title %></td>
+              <td class="p-3"><%= task.description || "-" %></td>
+
+              <td class="p-3">
+                <%= task.dueDate ? task.dueDate.toISOString().substring(0, 10) : "-" %>
+              </td>
+
+              <td class="p-3">
+                <span class="px-2 py-1 text-white text-sm rounded
+                  <%= task.status === 'completed' ? 'bg-green-600' : 'bg-yellow-500' %>">
+                  <%= task.status %>
+                </span>
+              </td>
+
+              <td class="p-3 flex gap-2 justify-center">
+
+                <!-- Toggle Status -->
+                <form method="POST" action="/tasks/status/<%= task.id %>">
+                  <button class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-sm">
+                    Toggle
+                  </button>
+                </form>
+
+                <!-- Edit -->
+                <a href="/tasks/edit/<%= task.id %>"
+                   class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                  Edit
+                </a>
+
+                <!-- Delete -->
+                <form method="POST" action="/tasks/delete/<%= task.id %>">
+                  <button onclick="return confirm('Delete this task?')"
+                          class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 text-sm">
+                    Delete
+                  </button>
+                </form>
+
+              </td>
+            </tr>
+          <% }) %>
+
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</body>
+</html>
